@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Média Ponderada</title>
+  <meta name="description" content="Calculadora de média ponderada em JavaScript vanilla, HTML e CSS." />
+  <style>
+    :root{
+      --bg:#0b1020; --card:#121733; --muted:#8ea3c0; --text:#e9eef9;
+      --accent:#7aa2ff; --accent-2:#5cf0d8; --error:#ff6b6b; --ok:#36d399;
+      --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 10% 10%, #151b38 0%, var(--bg) 55%),
+                  radial-gradient(800px 800px at 90% 10%, #0f1a2b 0%, var(--bg) 60%);
+      color:var(--text); display:grid; place-items:center; padding:24px;
+    }
+    .app{width:100%; max-width:980px}
+    header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
+    h1{margin:0; font-weight:750; font-size:clamp(22px,3.6vw,34px)}
+    .muted{color:var(--muted)}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden}
+
+    .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:14px; border-bottom:1px solid rgba(255,255,255,.06)}
+    .btn{appearance:none; border:none; padding:10px 14px; border-radius:12px; font-weight:700; letter-spacing:.2px; cursor:pointer; transition:transform .04s ease, filter .2s ease}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:linear-gradient(180deg,var(--accent),#6f94ff); color:#06143a}
+    .btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,.12)}
+    .btn.warn{background:linear-gradient(180deg,#ff9c9c,var(--error)); color:#250000}
+
+    .content{padding:14px; display:grid; gap:12px}
+
+    table{width:100%; border-collapse:separate; border-spacing:0 8px}
+    thead th{font-size:13px; font-weight:700; color:var(--muted); text-align:left; padding:0 10px}
+    tbody tr{background:var(--card); border:1px solid rgba(255,255,255,.08)}
+    tbody td{padding:8px}
+    tbody tr{border-radius:12px}
+    tbody tr td:first-child{border-top-left-radius:12px; border-bottom-left-radius:12px}
+    tbody tr td:last-child{border-top-right-radius:12px; border-bottom-right-radius:12px}
+
+    input[type="number"], input[type="text"]{
+      width:100%; background:#0d1329; border:1px solid rgba(255,255,255,.08); color:var(--text);
+      padding:10px 12px; border-radius:10px; outline:none; font-size:15px;
+    }
+    input[type="number"]:focus, input[type="text"]:focus{box-shadow:0 0 0 3px rgba(122,162,255,.35); border-color:var(--accent)}
+    .remove-btn{background:transparent; border:1px solid rgba(255,255,255,.15); color:#ffb3b3; padding:8px 10px; border-radius:10px; cursor:pointer}
+
+    .options{display:flex; flex-wrap:wrap; gap:12px; align-items:center; color:var(--muted); font-size:14px}
+    .switch{display:inline-flex; align-items:center; gap:8px; cursor:pointer}
+    .switch input{accent-color:var(--accent)}
+
+    .result{background:linear-gradient(180deg, rgba(122,162,255,.15), rgba(92,240,216,.12)); border:1px solid rgba(122,162,255,.35);
+      color:var(--text); padding:14px; border-radius:12px; font-size:clamp(16px,2.6vw,18px); display:flex; align-items:center; justify-content:space-between; gap:12px}
+    .result b{font-size:1.05em}
+    .hint{color:var(--muted); font-size:13px; text-align:center}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New"; background:#0d1329; border:1px solid rgba(255,255,255,.08); padding:2px 6px; border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Calculadora de Média Ponderada">
+    <header>
+      <h1>Média Ponderada</h1>
+    </header>
+
+    <section class="card" id="calc">
+      <div class="toolbar" role="toolbar" aria-label="Ações">
+        <button class="btn primary" id="addRow" title="Adicionar linha (Ctrl+Enter)">+ Adicionar linha</button>
+        <button class="btn ghost" id="calcBtn" title="Calcular (Enter)">Calcular</button>
+        <button class="btn ghost" id="clearBtn" title="Limpar (Esc)">Limpar</button>
+        <button class="btn warn" id="removeAll" title="Remover todas as linhas">Remover linhas</button>
+      </div>
+
+      <div class="content">
+        <div class="options">
+          <label class="switch" title="Se marcado, os pesos podem ser inseridos como percentuais de 0 a 100. A calculadora normaliza automaticamente.">
+            <input type="checkbox" id="percentMode" /> Pesos em % (0–100)
+          </label>
+          <label class="switch" title="Exibe somatórios úteis.">
+            <input type="checkbox" id="showSums" checked /> Mostrar somas
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table aria-label="Tabela de valores e pesos">
+            <thead>
+              <tr>
+                <th style="width:46%">Descrição (opcional)</th>
+                <th style="width:22%">Valor</th>
+                <th style="width:22%">Peso</th>
+                <th style="width:10%">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="result" aria-live="polite">
+          <span>Resultado (média ponderada)</span>
+          <b id="out">—</b>
+        </div>
+
+        <div class="hint">Atalhos: <span class="kbd">Enter</span> para calcular · <span class="kbd">Esc</span> para limpar · <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> para adicionar linha</div>
+        <div class="hint" id="sums" hidden>Σ(valor×peso): <span id="sumVP">—</span> · Σ(pesos): <span id="sumW">—</span></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Utilidades numéricas
+    const toNum = (v) => {
+      if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
+      const n = parseFloat(String(v).replace(',', '.'));
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const fmt = (n) => Number.isFinite(n) ? n.toLocaleString('pt-BR', { maximumFractionDigits: 6 }) : '—';
+
+    const tbody = document.getElementById('rows');
+    const out = document.getElementById('out');
+    const sumInfo = document.getElementById('sums');
+    const sumVP = document.getElementById('sumVP');
+    const sumW = document.getElementById('sumW');
+    const percentMode = document.getElementById('percentMode');
+
+    // Cria uma linha
+    function addRow(desc = '', val = '', w = ''){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" placeholder="Ex.: Prova 1" value="${desc}"></td>
+        <td><input type="number" inputmode="decimal" placeholder="Ex.: 8.5" value="${val}" step="any"></td>
+        <td><input type="number" inputmode="decimal" placeholder="Ex.: 2" value="${w}" step="any"></td>
+        <td style="text-align:right"><button class="remove-btn" title="Remover">Remover</button></td>
+      `;
+      tr.querySelector('.remove-btn').addEventListener('click', () => { tr.remove(); updateSums(); });
+      tbody.appendChild(tr);
+      // foco no primeiro campo vazio da linha
+      (tr.querySelector('input[placeholder^="Ex.: 8.5"]') || tr.querySelector('input')).focus();
+      updateSums();
+    }
+
+    // Eventos botões
+    document.getElementById('addRow').addEventListener('click', () => addRow());
+    document.getElementById('removeAll').addEventListener('click', () => { tbody.innerHTML=''; updateSums(); out.textContent='—'; });
+    document.getElementById('clearBtn').addEventListener('click', clearAll);
+    document.getElementById('calcBtn').addEventListener('click', calc);
+
+    document.getElementById('showSums').addEventListener('change', (e)=>{
+      sumInfo.hidden = !e.target.checked;
+    });
+
+    percentMode.addEventListener('change', updateSums);
+
+    // Atalhos
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.ctrlKey){ e.preventDefault(); calc(); }
+      if (e.key === 'Enter' && e.ctrlKey){ e.preventDefault(); addRow(); }
+      if (e.key === 'Escape'){ e.preventDefault(); clearAll(); }
+    });
+
+    // Limpar valores mantendo linhas
+    function clearAll(){
+      tbody.querySelectorAll('input[type="number"]').forEach(inp => inp.value = '');
+      out.textContent = '—';
+      updateSums();
+      const first = tbody.querySelector('input');
+      if (first) first.focus();
+    }
+
+    // Cálculo
+    function calc(){
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      if (rows.length === 0){ out.textContent = 'Adicione ao menos uma linha'; return; }
+
+      let sumWeighted = 0;
+      let sumWeights = 0;
+
+      for (const r of rows){
+        const v = toNum(r.children[1].querySelector('input').value);
+        const wRaw = toNum(r.children[2].querySelector('input').value);
+        if (!Number.isFinite(v) || !Number.isFinite(wRaw)) continue; // ignora linhas vazias/inválidas
+        const w = percentMode.checked ? (wRaw/100) : wRaw; // se for %, converte para fração
+        if (w <= 0) continue; // ignora pesos nulos/negativos
+        sumWeighted += v * w;
+        sumWeights += w;
+      }
+
+      if (!(sumWeights > 0)){
+        out.textContent = 'Soma dos pesos deve ser maior que 0';
+        sumVP.textContent = fmt(sumWeighted);
+        sumW.textContent = fmt(sumWeights);
+        return;
+      }
+
+      const avg = sumWeighted / sumWeights;
+      out.textContent = fmt(avg);
+      sumVP.textContent = fmt(sumWeighted);
+      sumW.textContent = fmt(sumWeights);
+    }
+
+    // Atualiza somatórios ao digitar
+    tbody.addEventListener('input', (e)=>{
+      if (e.target.matches('input')) updateSums();
+    });
+
+    function updateSums(){
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      let sw = 0, svp = 0;
+      for (const r of rows){
+        const v = toNum(r.children[1].querySelector('input').value);
+        const wRaw = toNum(r.children[2].querySelector('input').value);
+        if (!Number.isFinite(v) || !Number.isFinite(wRaw)) continue;
+        const w = percentMode.checked ? (wRaw/100) : wRaw;
+        if (w <= 0) continue;
+        svp += v * w;
+        sw += w;
+      }
+      sumVP.textContent = fmt(svp);
+      sumW.textContent = fmt(sw);
+    }
+
+    // Linhas iniciais de exemplo
+    addRow('Prova 1', '8.0', '2');
+    addRow('Prova 2', '7.5', '3');
+    addRow('Trabalho', '9.0', '1');
+  </script>
+</body>
+</html>
